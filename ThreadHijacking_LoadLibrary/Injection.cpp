@@ -69,7 +69,7 @@ LPVOID Inject::AllocNearKernel32DLL(HANDLE hProcess) {
   MEM_EXTENDED_PARAMETER MemParams = {0};
 
   MemRequirements.Alignment = 0;
-  MemRequirements.LowestStartingAddress = (PVOID)0x7FF9A0000000;
+  MemRequirements.LowestStartingAddress = (PVOID)0x00007FFCA0000000;
 
   MemParams.Type = MemExtendedParameterAddressRequirements;
   MemParams.Pointer = &MemRequirements;

