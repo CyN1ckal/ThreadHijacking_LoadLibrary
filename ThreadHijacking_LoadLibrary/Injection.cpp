@@ -44,3 +44,22 @@ HANDLE Inject::GetThreadFromProcess(DWORD ProcessID) {
   return hThread;
 }
 
+uintptr_t Inject::GetModuleBase(DWORD ProcessID, const char *szModuleName) {
+  uintptr_t ModuleBase = 0;
+  HANDLE hSnap = CreateToolhelp32Snapshot(
+      TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, ProcessID);
+  if (hSnap != INVALID_HANDLE_VALUE) {
+    MODULEENTRY32 me32;
+    me32.dwSize = sizeof(MODULEENTRY32);
+    if (Module32First(hSnap, &me32)) {
+      do {
+        if (strcmp(me32.szModule, szModuleName) == 0) {
+          ModuleBase = (uintptr_t)me32.modBaseAddr;
+          break;
+        }
+      } while (Module32Next(hSnap, &me32));
+    }
+  }
+  CloseHandle(hSnap);
+  return ModuleBase;
+}
