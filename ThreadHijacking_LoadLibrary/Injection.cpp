@@ -22,7 +22,7 @@ HANDLE Inject::GetThreadFromProcess(DWORD ProcessID) {
 
   do {
     if (te32.th32OwnerProcessID == ProcessID) {
-      printf("[+] Found Thread Matching Process ID!\n   [+] Thread ID: %d\n",
+      printf("[+] Found Thread Matching Process ID!\n   [+] Thread ID: %d\n\n",
              te32.th32ThreadID);
       break;
     }
@@ -62,4 +62,24 @@ uintptr_t Inject::GetModuleBase(DWORD ProcessID, const char *szModuleName) {
   }
   CloseHandle(hSnap);
   return ModuleBase;
+}
+
+LPVOID Inject::AllocNearKernel32DLL(HANDLE hProcess) {
+  MEM_ADDRESS_REQUIREMENTS MemRequirements = {0};
+  MEM_EXTENDED_PARAMETER MemParams = {0};
+
+  MemRequirements.Alignment = 0;
+  MemRequirements.LowestStartingAddress = (PVOID)0x7FF9A0000000;
+
+  MemParams.Type = MemExtendedParameterAddressRequirements;
+  MemParams.Pointer = &MemRequirements;
+
+  SYSTEM_INFO SysInfo;
+  GetSystemInfo(&SysInfo);
+
+  LPVOID MyBufferSpace = VirtualAlloc2(
+      hProcess, nullptr, SysInfo.dwAllocationGranularity,
+      MEM_RESERVE | MEM_COMMIT, PAGE_EXECUTE_READWRITE, &MemParams, 1);
+
+  return MyBufferSpace;
 }
