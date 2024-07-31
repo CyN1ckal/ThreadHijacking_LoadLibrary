@@ -1,6 +1,37 @@
 #include "stdafx.h"
 
 /*
+    brief: Inject Static Class Initialization
+*/
+bool Inject::Initialize() {
+  Inject::DllName= "C:\\dev\\ThreadHijacking_LoadLibrary\\x64\\Release\\Dummy_DLL.dll";
+
+  Inject::DllNameLength = Inject::NumCharsInCharPtr((char *)DllName);
+
+  Inject::ProcessID = 31428;
+
+  Inject::hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, Inject::ProcessID);
+  if (hProcess == INVALID_HANDLE_VALUE)
+  {
+    printf("[-] Error Opening Handle to Target Process!\n\n");
+    return 0;
+  }
+
+  return 1;
+}
+
+/*
+    brief: Returns the number of chars in a char*
+*/
+int Inject::NumCharsInCharPtr(char *array) {
+  int numberOfChars = 0;
+  while (*array++) {
+    numberOfChars++;
+  }
+  return numberOfChars;
+}
+
+/*
     brief: Snapshots all threads, and returns a handle to a thread matching the
    specified ProcessID. Returns INVALID_HANDLE_VALUE if something fails
 */

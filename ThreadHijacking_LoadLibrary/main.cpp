@@ -2,32 +2,21 @@
 
 #include "memoryapi.h"
 
-#include <bit>
-
 #pragma comment(lib, "onecore.lib")
 
-int NumCharsInCharPtr(char *array) {
-  int numberOfChars = 0;
-  while (*array++) {
-    numberOfChars++;
-  }
-  return numberOfChars;
-}
-
-DWORD ProcessID = 33232;
-const char *DllName =
-    "C:\\dev\\ThreadHijacking_LoadLibrary\\x64\\Release\\Dummy_DLL.dll";
-
-int DllNameLength = 0;
-
-const char *ModName = "KERNEL32.DLL";
+/*
+    Declarations from static Inject class
+*/
+DWORD Inject::ProcessID;
+const char *Inject::DllName;
+int Inject::DllNameLength;
+HANDLE Inject::hProcess;
 
 int main() {
-  DllNameLength = NumCharsInCharPtr((char *)DllName);
+  Inject::Initialize();
 
-  HANDLE hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, ProcessID);
-
-  uintptr_t KernelBase = Inject::GetModuleBase(ProcessID, ModName);
+  uintptr_t KernelBase =
+      Inject::GetModuleBase(Inject::ProcessID, "KERNEL32.DLL");
 
   printf("[+] KERNEL32.DLL Base: %llX\n\n", KernelBase);
 
@@ -35,7 +24,7 @@ int main() {
 
   printf("[+] LoadLibraryA: %llX\n\n", LoadLibraryA);
 
-  LPVOID MyBufferSpace = Inject::AllocNearKernel32DLL(hProcess);
+  LPVOID MyBufferSpace = Inject::AllocNearKernel32DLL(Inject::hProcess);
 
   if (MyBufferSpace == nullptr) {
     printf("[-] Failed Allocating Space In Target Process %d\n\n",
@@ -47,12 +36,13 @@ int main() {
 
   printf("[+] Copying DLL Path Into Target\n\n");
 
-  WriteProcessMemory(hProcess, MyBufferSpace, DllName, DllNameLength, nullptr);
+  WriteProcessMemory(Inject::hProcess, MyBufferSpace, Inject::DllName,
+                     Inject::DllNameLength, nullptr);
 
   /*
        Hijack the thread
   */
-  HANDLE hThread = Inject::GetThreadFromProcess(ProcessID);
+  HANDLE hThread = Inject::GetThreadFromProcess(Inject::ProcessID);
 
   if (hThread == INVALID_HANDLE_VALUE)
     return 0;
@@ -82,16 +72,13 @@ int main() {
   int ShellCodeLength = 32;
   int BufferSpace = 10;
 
-  printf("[+] Copying Shellcode into Target\n\n");
-
   LPBYTE Ptr = (LPBYTE)Code;
-
-  int ShellCodeCounter = 0;
 
   for (int i = 0; i < ShellCodeLength; i++) {
 
+    // Write address of string
     if (*Ptr == 0x0D && *(Ptr + 1) == 0xC1) {
-      uintptr_t Offset = DllNameLength + BufferSpace + 0xA;
+      uintptr_t Offset = Inject::DllNameLength + BufferSpace + 0xA;
 
       INT32 MaxInt32 = 0xFFFFFFFF;
 
@@ -102,12 +89,12 @@ int main() {
       }
     }
 
+    // Write address of old RIP
     if (*Ptr == 0xE9) {
       uintptr_t Offset = (uintptr_t)ctx.Rip - (uintptr_t)MyBufferSpace -
-                         DllNameLength - BufferSpace - ShellCodeLength;
+                         Inject::DllNameLength - BufferSpace - ShellCodeLength;
 
-      for (int i = 1; i < 5; i++)
-      {
+      for (int i = 1; i < 5; i++) {
         *(Ptr + i) = (Offset >> (8 * (i - 1))) & 0xff;
       }
     }
@@ -115,18 +102,20 @@ int main() {
     Ptr++;
   }
 
-  WriteProcessMemory(
-      hProcess,
-      (LPVOID)((uintptr_t)MyBufferSpace + DllNameLength + BufferSpace), Code,
-      ShellCodeLength, nullptr);
+  printf("[+] Copying Shellcode into Target\n\n");
 
-  ctx.Rip = ((uintptr_t)MyBufferSpace + BufferSpace + DllNameLength);
+  WriteProcessMemory(
+      Inject::hProcess,
+      (LPVOID)((uintptr_t)MyBufferSpace + Inject::DllNameLength + BufferSpace),
+      Code, ShellCodeLength, nullptr);
+
+  ctx.Rip = ((uintptr_t)MyBufferSpace + BufferSpace + Inject::DllNameLength);
 
   printf("[+] New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
 
   if (!SetThreadContext(hThread, &ctx)) {
     printf("Unable to SetThreadContext\n");
-    return 1;
+    return 0;
   }
 
   GetThreadContext(hThread, &ctx);
@@ -141,9 +130,17 @@ int main() {
 
   CloseHandle(hThread);
 
-  CloseHandle(hProcess);
+  CloseHandle(Inject::hProcess);
 
   printf("[+] Successfully Hijacked Thread and Injected DLL.\n\n");
+
+  Sleep(5000); // Cant free the memory until the user clicks back into the
+               // window. Notepad waits for a callback or something. 5s delay to
+               // click in, otherwise get fckd
+
+  SYSTEM_INFO SysInfo;
+  GetSystemInfo(&SysInfo);
+  VirtualFreeEx(Inject::hProcess, MyBufferSpace, 0, MEM_RELEASE);
 
   return 1;
 }
