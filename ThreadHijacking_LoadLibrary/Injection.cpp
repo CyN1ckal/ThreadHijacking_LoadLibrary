@@ -44,6 +44,9 @@ HANDLE Inject::GetThreadFromProcess(DWORD ProcessID) {
   return hThread;
 }
 
+/*
+    brief: Returns the address of the start of a module
+*/
 uintptr_t Inject::GetModuleBase(DWORD ProcessID, const char *szModuleName) {
   uintptr_t ModuleBase = 0;
   HANDLE hSnap = CreateToolhelp32Snapshot(
@@ -64,6 +67,11 @@ uintptr_t Inject::GetModuleBase(DWORD ProcessID, const char *szModuleName) {
   return ModuleBase;
 }
 
+/*
+    brief: Allocates memory near the old RIP value
+   This makes the shellcode much simpler; only needing E9 jump (offset) instead
+   of doing bullshit for an x64 absolute jmp
+*/
 LPVOID Inject::AllocNearKernel32DLL(HANDLE hProcess) {
   MEM_ADDRESS_REQUIREMENTS MemRequirements = {0};
   MEM_EXTENDED_PARAMETER MemParams = {0};
