@@ -14,10 +14,9 @@ int NumCharsInCharPtr(char *array) {
   return numberOfChars;
 }
 
-DWORD ProcessID = 18976;
-const char *DllName2 =
+DWORD ProcessID = 33232;
+const char *DllName =
     "C:\\dev\\ThreadHijacking_LoadLibrary\\x64\\Release\\Dummy_DLL.dll";
-const char *DllName = "C:\\dev\\Dummy_DLL\\x64\\Release\\Dummy_DLL.dll";
 
 int DllNameLength = 0;
 

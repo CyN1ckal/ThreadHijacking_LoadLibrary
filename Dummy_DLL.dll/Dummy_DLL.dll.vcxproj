@@ -24,6 +24,7 @@
     <ProjectGuid>{01fea995-d99d-4487-ad84-5f5675718b7c}</ProjectGuid>
     <RootNamespace>DummyDLLdll</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>Dummy_DLL</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
