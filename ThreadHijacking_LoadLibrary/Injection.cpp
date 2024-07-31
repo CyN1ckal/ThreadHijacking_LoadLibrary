@@ -4,15 +4,15 @@
     brief: Inject Static Class Initialization
 */
 bool Inject::Initialize() {
-  Inject::DllName= "C:\\dev\\ThreadHijacking_LoadLibrary\\x64\\Release\\Dummy_DLL.dll";
+  Inject::DllName =
+      "C:\\dev\\ThreadHijacking_LoadLibrary\\x64\\Release\\Dummy_DLL.dll";
 
   Inject::DllNameLength = Inject::NumCharsInCharPtr((char *)DllName);
 
-  Inject::ProcessID = 29104;
+  Inject::ProcessID = 16284;
 
   Inject::hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, Inject::ProcessID);
-  if (hProcess == INVALID_HANDLE_VALUE)
-  {
+  if (hProcess == INVALID_HANDLE_VALUE) {
     printf("[-] Error Opening Handle to Target Process!\n\n");
     return 0;
   }
@@ -102,13 +102,17 @@ uintptr_t Inject::GetModuleBase(DWORD ProcessID, const char *szModuleName) {
     brief: Allocates memory near the old RIP value
    This makes the shellcode much simpler; only needing E9 jump (offset) instead
    of doing bullshit for an x64 absolute jmp
+
+   Update: This is now unnecessary as I am doing an absolute jump back to the
+   RIP value, so no need to be close to it anymore.
 */
-LPVOID Inject::AllocNearKernel32DLL(HANDLE hProcess) {
+LPVOID Inject::AllocNearOldRIP(HANDLE hProcess) {
   MEM_ADDRESS_REQUIREMENTS MemRequirements = {0};
   MEM_EXTENDED_PARAMETER MemParams = {0};
 
   MemRequirements.Alignment = 0;
-  MemRequirements.LowestStartingAddress = (PVOID)0x00007FFCA0000000;
+  // MemRequirements.LowestStartingAddress = (PVOID)0x00007FFCA0000000;
+  MemRequirements.LowestStartingAddress = (PVOID)0x00007FFFB3790000;
 
   MemParams.Type = MemExtendedParameterAddressRequirements;
   MemParams.Pointer = &MemRequirements;

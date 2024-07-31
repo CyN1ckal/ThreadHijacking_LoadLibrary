@@ -13,7 +13,8 @@ int Inject::DllNameLength;
 HANDLE Inject::hProcess;
 
 int main() {
-  Inject::Initialize();
+  if (!Inject::Initialize())
+    return 0;
 
   uintptr_t KernelBase =
       Inject::GetModuleBase(Inject::ProcessID, "KERNEL32.DLL");
@@ -22,7 +23,8 @@ int main() {
   uintptr_t LoadLibraryA = (uintptr_t)(KernelBase + 0x20830);
   printf("[+] LoadLibraryA: %llX\n\n", LoadLibraryA);
 
-  LPVOID MyBufferSpace = Inject::AllocNearKernel32DLL(Inject::hProcess);
+  LPVOID MyBufferSpace = VirtualAllocEx(Inject::hProcess, nullptr, 1000,
+                                        MEM_COMMIT, PAGE_EXECUTE_READWRITE);
   if (MyBufferSpace == nullptr) {
     printf("[-] Failed Allocating Space In Target Process %d\n\n",
            GetLastError());
@@ -58,17 +60,21 @@ int main() {
   */
   /*
     C1 FF FF FF = Relative Address to Start of String
-    B0 10 B5 0F = Relative Address to Original RIP
+    30 08 80 DA FC 7F 00 00 = Address of LoadLibraryA
+    04 11 FA D7 FC 7F 00 00 = Address to old RIP
   */
-  char Code[] = {0x48, 0x83, 0xEC, 0x28, 0x48, 0x8D, 0x0D, 0xC1,
-                 0xFF, 0xFF, 0xFF, 0x48, 0xBA, 0x30, 0x08, 0xCC,
-                 0xB1, 0xFC, 0x7F, 0x00, 0x00, 0xFF, 0xD2, 0x48,
-                 0x83, 0xC4, 0x28, 0xE9, 0xB0, 0x10, 0xB5, 0x0F};
-  int ShellCodeLength = 32;
+  char Code[] = {0x48, 0x83, 0xEC, 0x28, 0x48, 0x8D, 0x0D, 0xAF, 0xFF, 0xFF,
+                 0xFF, 0x48, 0xBA, 0x30, 0x08, 0x80, 0xDA, 0xFC, 0x7F, 0x00,
+                 0x00, 0xFF, 0xD2, 0x48, 0x83, 0xC4, 0x28, 0x48, 0xBA, 0x04,
+                 0x11, 0xFA, 0xD7, 0xFC, 0x7F, 0x00, 0x00, 0xFF, 0xE2};
+  int ShellCodeLength = 39;
   int PaddingSpace = 10;
+
+  int CurrentShellCodeCounter = 0;
 
   LPBYTE Ptr = (LPBYTE)Code;
   for (int i = 0; i < ShellCodeLength; i++) {
+    CurrentShellCodeCounter++;
 
     // Write relative offset to DLL string
     if (*Ptr == 0x0D && *(Ptr + 1) == 0xC1) {
@@ -83,13 +89,19 @@ int main() {
       }
     }
 
-    // Write address of old RIP
-    if (*Ptr == 0xE9) {
-      uintptr_t Offset = (uintptr_t)ctx.Rip - (uintptr_t)MyBufferSpace -
-                         Inject::DllNameLength - PaddingSpace - ShellCodeLength;
+    // Write address of LoadLibraryA
+    if (*Ptr == 0x48 && *(Ptr + 1) == 0xBA && CurrentShellCodeCounter == 12) {
+      printf("Adjusting Load Library\n");
+      for (int i = 2; i < 10; i++) {
+        *(Ptr + i) = (LoadLibraryA >> (8 * (i - 2))) & 0xff;
+      }
+    }
 
-      for (int i = 1; i < 5; i++) {
-        *(Ptr + i) = (Offset >> (8 * (i - 1))) & 0xff;
+    // Write address of RIP jmp
+    if (*Ptr == 0x48 && *(Ptr + 1) == 0xBA && CurrentShellCodeCounter == 28) {
+      printf("Adjusting RIP Return Address\n");
+      for (int i = 2; i < 10; i++) {
+        *(Ptr + i) = ((uintptr_t)ctx.Rip >> (8 * (i - 2))) & 0xff;
       }
     }
 
@@ -124,8 +136,6 @@ int main() {
 
   CloseHandle(hThread);
 
-  CloseHandle(Inject::hProcess);
-
   printf("[+] Successfully Hijacked Thread and Injected DLL.\n\n");
 
   Sleep(5000); // Cant free the memory until the user clicks back into the
@@ -134,7 +144,10 @@ int main() {
 
   SYSTEM_INFO SysInfo;
   GetSystemInfo(&SysInfo);
-  VirtualFreeEx(Inject::hProcess, MyBufferSpace, 0, MEM_RELEASE);
+
+ // VirtualFreeEx(Inject::hProcess, MyBufferSpace, 0, MEM_RELEASE);
+
+  CloseHandle(Inject::hProcess);
 
   return 1;
 }
