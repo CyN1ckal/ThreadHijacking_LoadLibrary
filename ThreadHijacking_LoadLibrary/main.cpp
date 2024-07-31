@@ -17,25 +17,20 @@ int main() {
 
   uintptr_t KernelBase =
       Inject::GetModuleBase(Inject::ProcessID, "KERNEL32.DLL");
-
   printf("[+] KERNEL32.DLL Base: %llX\n\n", KernelBase);
 
   uintptr_t LoadLibraryA = (uintptr_t)(KernelBase + 0x20830);
-
   printf("[+] LoadLibraryA: %llX\n\n", LoadLibraryA);
 
   LPVOID MyBufferSpace = Inject::AllocNearKernel32DLL(Inject::hProcess);
-
   if (MyBufferSpace == nullptr) {
     printf("[-] Failed Allocating Space In Target Process %d\n\n",
            GetLastError());
     return 0;
   }
-
   printf("[+] MyBufferSpace: %llX\n\n", (uintptr_t)MyBufferSpace);
 
   printf("[+] Copying DLL Path Into Target\n\n");
-
   WriteProcessMemory(Inject::hProcess, MyBufferSpace, Inject::DllName,
                      Inject::DllNameLength, nullptr);
 
@@ -70,15 +65,14 @@ int main() {
                  0xB1, 0xFC, 0x7F, 0x00, 0x00, 0xFF, 0xD2, 0x48,
                  0x83, 0xC4, 0x28, 0xE9, 0xB0, 0x10, 0xB5, 0x0F};
   int ShellCodeLength = 32;
-  int BufferSpace = 10;
+  int PaddingSpace = 10;
 
   LPBYTE Ptr = (LPBYTE)Code;
-
   for (int i = 0; i < ShellCodeLength; i++) {
 
-    // Write address of string
+    // Write relative offset to DLL string
     if (*Ptr == 0x0D && *(Ptr + 1) == 0xC1) {
-      uintptr_t Offset = Inject::DllNameLength + BufferSpace + 0xA;
+      uintptr_t Offset = Inject::DllNameLength + PaddingSpace + 0xA;
 
       INT32 MaxInt32 = 0xFFFFFFFF;
 
@@ -92,7 +86,7 @@ int main() {
     // Write address of old RIP
     if (*Ptr == 0xE9) {
       uintptr_t Offset = (uintptr_t)ctx.Rip - (uintptr_t)MyBufferSpace -
-                         Inject::DllNameLength - BufferSpace - ShellCodeLength;
+                         Inject::DllNameLength - PaddingSpace - ShellCodeLength;
 
       for (int i = 1; i < 5; i++) {
         *(Ptr + i) = (Offset >> (8 * (i - 1))) & 0xff;
@@ -106,12 +100,12 @@ int main() {
 
   WriteProcessMemory(
       Inject::hProcess,
-      (LPVOID)((uintptr_t)MyBufferSpace + Inject::DllNameLength + BufferSpace),
+      (LPVOID)((uintptr_t)MyBufferSpace + Inject::DllNameLength + PaddingSpace),
       Code, ShellCodeLength, nullptr);
 
-  ctx.Rip = ((uintptr_t)MyBufferSpace + BufferSpace + Inject::DllNameLength);
+  ctx.Rip = ((uintptr_t)MyBufferSpace + PaddingSpace + Inject::DllNameLength);
 
-  printf("[+] New RIP: %llX\n\n", (uintptr_t)ctx.Rip);
+  printf("[+] New Expected RIP: %llX\n\n", (uintptr_t)ctx.Rip);
 
   if (!SetThreadContext(hThread, &ctx)) {
     printf("Unable to SetThreadContext\n");

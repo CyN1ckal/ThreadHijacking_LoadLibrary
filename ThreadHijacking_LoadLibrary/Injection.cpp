@@ -8,7 +8,7 @@ bool Inject::Initialize() {
 
   Inject::DllNameLength = Inject::NumCharsInCharPtr((char *)DllName);
 
-  Inject::ProcessID = 31428;
+  Inject::ProcessID = 29104;
 
   Inject::hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, Inject::ProcessID);
   if (hProcess == INVALID_HANDLE_VALUE)
